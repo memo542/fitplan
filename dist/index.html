@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fitplan · 饮食与训练</title><link rel="stylesheet" href="style.css"><script src="app.js" defer></script></head>
+<body>
+<aside><a class="brand" href="#today"><span class="logo">F</span> fitplan<span class="dot">.</span></a><p class="tagline">吃得有据，练得有序</p>
+<nav aria-label="主导航"><a href="#today" data-page="today">◉ <span>今日概览</span></a><a href="#food" data-page="food">◷ <span>饮食记录</span></a><a href="#training" data-page="training">↗ <span>训练安排</span></a><a href="#week" data-page="week">▦ <span>本周回顾</span></a></nav>
+<div class="aside-note"><span class="status-dot"></span> 本地原型 · 第一阶段<p>先记录，再做有依据的调整。</p></div></aside>
+<main><header><span>我的健康日常 / <span id="breadcrumb">今日概览</span></span><time id="date"></time></header>
+<section class="page" id="today" aria-labelledby="today-title"><div class="heading"><div><p class="eyebrow">ONE DAY AT A TIME</p><h1 id="today-title">把今天，安排得刚刚好。</h1><p class="muted">从真实的饮食和训练记录开始，慢慢找到适合自己的节奏。</p></div><span class="pill">尚未开始记录</span></div>
+<div class="hero"><div><span class="pill light">饮食 × 训练</span><h2>下一餐，<br>也考虑今天的训练。</h2><p>把吃了什么、准备练什么放在一起，<br>让每一次调整都有依据。</p><a class="button" href="#food">查看饮食记录 <span>→</span></a></div><div class="orbit" aria-hidden="true"><div class="ring"><span>记录</span><strong>你的<br>日常节奏</strong><span>回顾 · 调整</span></div><b class="bubble one">饮食</b><b class="bubble two">训练</b></div></div>
+<div class="section-title"><h2>今天的起点</h2><span>缺失记录 ≠ 零摄入 / 零训练</span></div>
+<div class="cards"><article><span class="card-icon">◷</span><h3>饮食记录</h3><strong>暂无记录</strong><p>记录早餐和午餐后，再考虑晚餐。</p><a href="#food">查看饮食 →</a></article><article><span class="card-icon">↗</span><h3>训练安排</h3><strong>尚未安排</strong><p>计划与实际完成，将分别记录。</p><a href="#training">查看训练 →</a></article><article><span class="card-icon">✧</span><h3>晚餐建议</h3><strong>等待基础信息</strong><p>本阶段未接入 AI，不生成饮食方案。</p><span class="small">后续阶段开放</span></article></div>
+<div class="notice"><strong>从建议到记录，每一步由你确认。</strong><p>推荐的晚餐不等于已经吃过，计划的训练不等于已经完成。</p></div></section>
+<section class="page" id="food" hidden aria-labelledby="food-title"><p class="eyebrow">FOOD JOURNAL</p><h1 id="food-title">饮食记录</h1><p class="muted">真实记录每一餐，保留份量和营养数据来源。</p><div class="empty"><span>◷</span><h2>你的第一餐记录，从这里开始</h2><p>目前尚无饮食数据。本阶段仅搭建页面，录入、修改与保存将在后续实现。</p><button disabled>添加饮食 · 尚未开放</button></div><div class="notice">信息不足时显示“未知”，不会把缺失的营养数据当作零。</div></section>
+<section class="page" id="training" hidden aria-labelledby="training-title"><p class="eyebrow">TRAINING JOURNAL</p><h1 id="training-title">训练安排</h1><p class="muted">给计划留位置，也给实际情况留余地。</p><div class="cards two"><article><span class="pill">计划</span><h2>准备做什么</h2><p>尚无训练计划。</p><button disabled>安排训练 · 尚未开放</button></article><article><span class="pill">实际</span><h2>已经完成什么</h2><p>尚无完成记录，不代表没有训练。</p><button disabled>记录完成 · 尚未开放</button></article></div><div class="notice">只有用户确认完成后，训练才会计入实际记录。</div></section>
+<section class="page" id="week" hidden aria-labelledby="week-title"><p class="eyebrow">WEEKLY REFLECTION</p><h1 id="week-title">本周回顾</h1><p class="muted">先看记录是否完整，再理解自己的节奏。</p><div class="empty"><span>▦</span><h2>积累记录后，再一起回顾</h2><p>暂无可汇总的数据。本阶段不展示模拟统计，也不推断计划执行率。</p><a class="button" href="#today">返回今日概览 →</a></div></section>
+<footer>Fitplan · 本地页面原型 <span>日常记录与计划辅助，不提供医疗诊断。</span></footer></main></body></html>
