@@ -53,3 +53,25 @@
 .entry-panel .interest-choice input{width:17px;min-height:17px;height:17px;flex-shrink:0;accent-color:#315b45;margin:0}
 .interest-choice:has(input:checked){background:#e7efdc;border-color:#9eb58d;color:#284c37}
 @media(max-width:420px){.goal-interests{grid-template-columns:1fr}}
+
+.journal-list{list-style:none;margin:18px 0;padding:0}.journal-list>li{border-top:1px solid #e1e7db;padding:18px 0;overflow-wrap:anywhere}
+.journal-list h3{font-size:16px;color:#294735;margin:0 0 8px}.journal-list p{margin:6px 0;white-space:pre-wrap}
+.journal-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.journal-actions button{font-size:12px;padding:8px 12px;cursor:pointer;background:#edf2e5;color:#46613a}
+.journal-actions button:last-child{color:#826b53;background:#f5efe6}.journal-list .journal-empty{color:#7d8874;font-size:13px}
+
+.entry-panel textarea{display:block;width:100%;resize:vertical;min-height:125px;border:1px solid #cbd5c4;border-radius:12px;background:#fafbf7;color:#243d34;padding:14px;font:inherit;font-size:14px;line-height:1.8}
+.entry-panel textarea:focus-visible{outline:3px solid #b4c99a;outline-offset:2px}
+.training-preview{white-space:pre-wrap;background:#edf2e5;border:1px solid #dce6cf;border-radius:12px;padding:18px;margin:20px 0;font-size:13px;line-height:1.9}
+#training-details{margin-top:22px;border-top:1px solid #e1e7db;padding-top:16px}
+#training-details summary{cursor:pointer;color:#59724c;font-size:13px;padding:8px 0}
+
+.food-modes{display:flex;gap:6px;background:#edf1e8;padding:5px;border-radius:12px}.food-modes button{flex:1;background:transparent;color:#63765c;cursor:pointer;font-size:14px}.food-modes [aria-pressed=true]{background:#315b45;color:white}
+.food-help{font-size:12px;margin-top:24px;line-height:1.8;color:#748168}.food-help summary{cursor:pointer}
+.food-total{font-size:20px!important;color:#315b45!important;font-weight:600}
+.food-estimate-item{background:#f5f7f0;border-radius:10px;padding:13px;margin-top:10px;font-size:13px}
+.food-estimate-item a{font-size:11px;text-decoration:underline;color:#5f7654}.food-estimate-item details{font-size:11px;line-height:1.8;color:#718065;margin-top:8px}
+.food-estimate-item .gram-edit{width:100px;min-height:34px;padding:6px;font-size:13px;margin:8px}
+.food-estimate-item p{margin:5px 0}
+
+#food-list > li > button{margin:20px 10px 0 0;padding:10px 16px;background:#edf2e5;color:#46613a;font-size:13px;cursor:pointer}
+#food-list > li > button:last-child{background:#f5efe6;color:#826b53}
