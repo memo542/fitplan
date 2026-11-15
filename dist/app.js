@@ -85,7 +85,7 @@ el('goal-form').addEventListener('submit', event => {
  const weight=el('goal-weight').value.trim();
  if (weight !== '' && !positive(weight)) { goalStatus.textContent='目标体重可留空；填写时必须是大于零的数值。'; return; }
  const data={version:2, kind:el('goal-kind').value, weight:weight === '' ? null : Number(weight), interests:interestIds.filter(id=>el('interest-'+id).checked), updatedAt:new Date().toISOString()};
- try { localStorage.setItem(goalKey,JSON.stringify(data)); goalStatus.textContent='目标规划已保存，按你的节奏慢慢来。'; }
+ try { localStorage.setItem(goalKey,JSON.stringify(data)); renderGoalSummary(); goalStatus.textContent='目标规划已保存，按你的节奏慢慢来。'; }
  catch { goalStatus.textContent='保存失败，浏览器存储不可用。'; }
 });
 el('clear-goal').addEventListener('click', () => {
@@ -93,9 +93,22 @@ el('clear-goal').addEventListener('click', () => {
  try {
   localStorage.removeItem(goalKey); el('goal-kind').value=''; el('goal-weight').value='';
   interestIds.forEach(id=>el('interest-'+id).checked=false);
-  goalStatus.textContent='已清除，自定义目标仍保留。';
+  renderGoalSummary(); goalStatus.textContent='已清除，自定义目标仍保留。';
  } catch { goalStatus.textContent='清除失败，请重试。'; }
 });
+
+function renderGoalSummary(){
+ let label='待设置';
+ try {
+  const kind=JSON.parse(localStorage.getItem(goalKey))?.kind;
+  const option=Array.from(el('goal-kind').options).find(item=>item.value && item.value===kind);
+  if(option)label=option.textContent;
+ } catch { label='暂时无法读取'; }
+ el('today-goal').textContent=label;
+ el('overview-goal').textContent='当前目标：'+label+'。';
+}
+renderGoalSummary();
+window.addEventListener('storage',event=>{if(event.key===goalKey)renderGoalSummary()});
 
 function connectCustom(type) {
  const key='fitplan.'+type+'.custom.v1',status=el(type+'-custom-status'),list=el(type+'-custom-list');
@@ -250,6 +263,18 @@ for(const f of ['name','minutes','sets','reps','weight'])el('training-'+f).addEv
  function fresh(){try{items=read();return true}catch{blocked=true;status.textContent='无法读取记录，已暂停保存以保护数据。';return false}}
  function render(){
   list.replaceChildren();
+  if(type==='training'){
+   const today=items.filter(item=>item.date===localDay());
+   el('today-training').textContent=today.length?'已完成 '+today.filter(item=>item.state==='done').length+' 项':'待记录';
+   const summary=el('overview-training');
+   summary.replaceChildren();
+   for(const item of today){
+    const row=document.createElement('li');
+    row.textContent=(item.state==='done'?'已完成 · ':'计划 · ')+item.name;
+    summary.append(row);
+   }
+   if(!today.length)summary.textContent='今天还没有训练记录。';
+  }
   const rows=items.filter(d=>d.date===el(type+'-filter').value);
   el(type+'-summary').textContent=type==='food'?'已记录 '+rows.length+' 条；营养数据未知。':'计划 '+rows.filter(d=>d.state==='planned').length+' 条 · 已完成 '+rows.filter(d=>d.state==='done').length+' 条';
   if(!rows.length){const li=document.createElement('li');li.className='journal-empty';li.textContent=blocked?'记录暂时无法读取。':'这一天还没有记录，从一条开始就好。';list.append(li)}
@@ -436,6 +461,11 @@ function connectFoodEstimator(){
    li.append(del);list.append(li);
   }
   const today=records.filter(d=>d.date===localDay()),total=el('today-food-total');
+  el('overview-intake').textContent=today.length?totalText(today):'待记录';
+  const meals=el('overview-meals');
+  meals.replaceChildren();
+  for(const entry of today)meals.append(make('li',entry.meal+' · '+entry.raw));
+  if(!today.length)meals.textContent='今天还没有饮食记录。';
   if(total)total.textContent=today.length?totalText(today):'待记录';
  }
  function saveResult(day){
