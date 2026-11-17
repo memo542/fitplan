@@ -68,3 +68,15 @@ AI接口、专项营养处方、经期记录、数据导出/跨设备同步。
 原始对话、录屏和截图保存在并列竞赛素材目录；Git 提交和推送需用户先确认说明。
 
 扩展食品营养数据来源：卫生福利部食品药物管理署，政府资料开放授权条款第1版。https://data.gov.tw/dataset/8543 。本版使用 https://github.com/liao961120/Taiwan-FDA-nutrition 的整理快照，按字段完整性及名称去重，简化字供搜索。
+
+## AI 设置
+在 Windows 上可双击「配置AI.cmd」，粘贴自己的 DeepSeek 开放平台密钥并回车。工具先用一条虚构问题进行一次计费连接测试；收到回答后，通过 Windows 当前账户加密保存密钥至本机用户目录。服务会在请求时读取配置。更换密钥时重新运行即可。删除用户目录 %LOCALAPPDATA%\Fitplan 下的 deepseek.credential 即可移除配置。
+
+其他兼容服务也可以使用以下环境变量，优先于上述本机配置。
+在启动服务的 PowerShell 中设置兼容 Chat Completions 的模型地址和模型名。下面以本机已安装模型的 Ollama 为例。模型名填写自己已安装的名称。
+```powershell
+$env:FITPLAN_AI_URL = 'http://127.0.0.1:11434/v1/chat/completions'
+$env:FITPLAN_AI_MODEL = '你的模型名称'
+npm.cmd start
+```
+云服务可使用供应商的 HTTPS 接口地址，并在同一窗口设置环境变量 FITPLAN_AI_KEY。密钥仅由本机服务读取。更新配置后重新启动服务。通过本机服务打开「今日建议」使用 AI；仅点击生成时发送当天摘要、目标、输入条件及上一次建议。采纳结果保存在当前空间。周回顾按当地日期的周一至周日汇总。

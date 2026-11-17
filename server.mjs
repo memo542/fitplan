@@ -1,7 +1,9 @@
+import { advice } from './advice.mjs';
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 const assets = { '/': ['index.html','text/html'], '/index.html': ['index.html','text/html'], '/style.css': ['style.css','text/css'], '/app.js': ['app.js','text/javascript'] };
 const server = http.createServer(async (req, res) => {
+  if(req.url==="/api/advice")return advice(req,res);
   const asset = assets[new URL(req.url, 'http://localhost').pathname];
   if (!asset) { res.writeHead(404); res.end('Not found'); return; }
   try {

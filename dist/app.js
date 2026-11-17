@@ -1431,6 +1431,7 @@ el('training-raw').addEventListener('input',()=>{
  el('training-status').textContent='原文已变更，请重新整理后保存。';
 });
 for(const f of ['name','minutes','sets','reps','weight'])el('training-'+f).addEventListener('input',()=>{if(trainingPreparedRaw!==null)previewTraining()});
+ const adviceWriters={};
  function connectJournal(type) {
  const key='fitplan.'+type+'.records.v1',form=el(type+'-form'),status=el(type+'-status'),list=el(type+'-list');
  const fields=type==='food'?['date','meal','name','amount','unit','note']:['date','state','name','minutes','sets','reps','weight','note'];
@@ -1508,6 +1509,15 @@ for(const f of ['name','minutes','sets','reps','weight'])el('training-'+f).addEv
   const next=editing?items.map(d=>d.id===editing?record:d):[...items,record];
   if(write(next)){el(type+'-filter').value=draft.date;reset();status.textContent='已保存到当前浏览器。';render()}
  });
+ adviceWriters.training=(id,date,raw)=>{
+  if(!fresh())throw Error('训练记录读取失败');
+  if(items.some(r=>r.id===id||(r.date===date&&r.state==='done'&&r.raw===raw)))return;
+  const parsed=parseTrainingText(raw);
+  const record={...parsed,id,date,raw,state:'done',note:'',interpretation:parsed,activity:null,updatedAt:new Date().toISOString()};
+  const error=journalError('training',record);if(error)throw Error(error);
+  if(!write([...items,record]))throw Error('训练保存失败');
+  el('training-filter').value=date;render();
+ };
  el(type+'-cancel').addEventListener('click',()=>{reset();status.textContent='已取消修改。'});
  el(type+'-filter').addEventListener('change',render);
  window.addEventListener('storage',event=>{if(event.key===key){if(fresh())render()}});
@@ -4033,6 +4043,13 @@ el('food-eaten-mode').addEventListener('click',()=>setMode('eaten'));
   if(mode==='eaten'){if(!saveResult(date.value))renderResult()}else{renderResult();status.textContent='估算完成，尚未计入摄入。'}
  });
  el('food-query-save').addEventListener('click',()=>{if(result&&!lastSaved)saveResult(localDay())});
+ if(document.getElementById)adviceWriters.food=(id,date,raw,meal)=>{
+  if(!refresh())throw Error('饮食记录读取失败');
+  if(records.some(r=>r.id===id||(r.date===date&&r.meal===meal&&r.raw===raw)))return;
+  const items=estimateFood(raw);if(!items.length)throw Error('请填写食物名称');
+  if(!write([...records,{id,date,raw,meal,items}]))throw Error('饮食保存失败');
+  filter.value=date;renderRecords();
+ };
  filter.addEventListener('change',()=>{if(refresh())renderRecords()});
  window.addEventListener('storage',event=>{if(event.key===key&&refresh()){result=null;lastSaved=null;renderResult();renderRecords()}});
  if(refresh())renderRecords();
@@ -4151,8 +4168,60 @@ function renderWeek(){
   }
  }catch{panel.textContent='本周记录读取失败，请重新打开页面。'}
 }
+function setupAdvice(){
+ const generate=el('ai-generate'),adopt=el('ai-adopt'),output=el('ai-result');
+ const day=demoMonth?demoMonth+'-15':localDay();
+ if(demoMonth)el('ai-context-help').textContent='演示日期：'+day+'。生成时会发送这一天的虚构饮食、训练摘要以及你输入的条件。';
+ const key='fitplan.advice.'+day;
+ function showReply(prefix,text){
+  output.replaceChildren(document.createTextNode(prefix));
+  for(const part of text.split(/(\*\*[^*\n]+\*\*)/g)){
+   if(part.startsWith('**')&&part.endsWith('**')&&part.length>4){
+    const strong=document.createElement('strong');strong.textContent=part.slice(2,-2);output.append(strong);
+   }else output.append(document.createTextNode(part));
+  }
+ }
+ const choices=el('ai-choices'),rows=el('ai-rows'),status=el('ai-log-status');
+ let options=[];
+ function prepare(records){
+  rows.replaceChildren();options=[];choices.hidden=!records.length;
+  for(const candidate of records){
+   const row=document.createElement('div'),label=document.createElement('label'),check=document.createElement('input');
+   check.type='checkbox';label.append(check,document.createTextNode((candidate.kind==='food'?'已吃：':'已完成：')+candidate.raw));row.append(label);
+   const meal=document.createElement('select');
+   if(candidate.kind==='food'){meal.setAttribute('aria-label','记录到哪一餐');for(const name of ['加餐','早餐','午餐','晚餐'])meal.add(new Option(name,name));row.append(meal)}
+   rows.append(row);options.push({candidate,check,meal,id:crypto.randomUUID()});
+  }
+  adopt.textContent=options.length?'采纳并记录':'采纳建议';
+ }
+ let suggestion=fitplanStorage.getItem(key)||'';
+ if(suggestion)showReply('已采纳：',suggestion);
+ generate.onclick=async()=>{
+  const condition=el('ai-condition').value.trim();
+  if(!condition){el('ai-condition').focus();output.textContent='请先写下今天的条件。';return}
+  generate.disabled=true;adopt.hidden=true;choices.hidden=true;status.textContent='';output.textContent='正在生成…';
+  try{
+   const today=day,food=journalRecords('food.records',[]).filter(r=>r.date===today),training=journalRecords('training.records',[]).filter(r=>r.date===today);
+   const payload={condition,date:day,goal:journalRecords('goals',{}).kind,meals:food.map(r=>r.raw).slice(-20),training:training.slice(-20).map(r=>({name:r.name,state:r.state,minutes:r.minutes})),previous:suggestion.slice(0,1000)};
+   const res=await fetch('/api/advice',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+   if(!res.ok)throw Error(res.status===503?'模型尚未配置，请按 README 的 AI 设置启动服务。':'模型暂时无法响应，请稍后再试。');
+   const data=await res.json();suggestion=data.text;prepare(data.records||[]);showReply('',suggestion);adopt.hidden=false;generate.textContent='换一个建议';
+  }catch(error){output.textContent=error.message}
+  finally{generate.disabled=false}
+ };
+ adopt.onclick=()=>{
+  const selected=options.filter(o=>o.check.checked);
+  if(options.length&&!selected.length){status.textContent='请勾选实际吃过或练过的项目。';return}
+  try{
+   for(const {id,candidate,meal} of selected)adviceWriters[candidate.kind](id,day,candidate.raw,meal.value);
+   fitplanStorage.setItem(key,suggestion);showReply('已采纳：',suggestion);
+   choices.hidden=adopt.hidden=true;renderDayDetails();
+   status.textContent=selected.length?'所选项目已在 '+day+' 的对应记录中保存。':'已采纳。';
+  }catch(error){status.textContent=error.message+'，可重试。'}
+ };
+}
 if(document.getElementById){
- setupProgress();renderDayDetails();
+ setupProgress();setupAdvice();renderDayDetails();
  for(const event of ['hashchange','storage','focus','food-records-changed'])window.addEventListener(event,()=>{if(location.hash==='#week')renderProgress()});
 }
 function dateKey(date){

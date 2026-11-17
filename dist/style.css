@@ -102,9 +102,10 @@
 @media (max-width: 420px) {
   #space-picker[open] { grid-template-columns: 1fr; }
 }
-#week-review h3:not(:first-child){border-top:1px solid #dbe3d6;padding-top:1rem}
+.ai-panel{margin-top:1.5rem;display:grid;gap:1rem}.ai-panel>*{margin:0}.ai-panel button{justify-self:start}#ai-result{white-space:pre-line}#week-review h3:not(:first-child){border-top:1px solid #dbe3d6;padding-top:1rem}
 .progress-controls{display:flex;flex-wrap:wrap;align-items:end;gap:1rem;margin:1.5rem 0}.progress-controls label:not([hidden]){display:grid;gap:.5rem}.progress-controls select,.progress-controls input{padding:.65rem;border-radius:.65rem;border:1px solid #ccd8cc;background:white;font:inherit}#month-review svg{display:block;width:100%;max-width:42rem;margin:1rem 0;color:#365846}#month-review svg text{font-size:13px;fill:#43594b}
 .day-confirm{display:flex;align-items:center;gap:.65rem;margin:1rem 0}.entry-panel .day-confirm input{width:auto;margin:0}
 .energy-averages{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr));gap:.75rem;margin:1rem 0}
 .energy-averages>div{padding:1rem;background:#f0f4ed;border-radius:14px;color:#334d3e}
 .energy-averages strong{display:block;margin-top:.35rem;font-size:1.6rem;font-variant-numeric:tabular-nums}
+#ai-choices{padding:1rem;border:1px solid #dbe3d6;border-radius:12px}#ai-rows>div{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin:.6rem 0}#ai-rows label{display:flex;align-items:center;gap:.5rem;margin:0}#ai-rows input{width:auto;margin:0}#ai-rows select{width:auto}
