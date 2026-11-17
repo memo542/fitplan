@@ -75,3 +75,30 @@
 
 #food-list > li > button{margin:20px 10px 0 0;padding:10px 16px;background:#edf2e5;color:#46613a;font-size:13px;cursor:pointer}
 #food-list > li > button:last-child{background:#f5efe6;color:#826b53}
+
+#library-results{display:grid;gap:6px;margin:12px 0}#library-results button{text-align:left;padding:9px 12px;color:#315b45;background:#f0f4eb;cursor:pointer}
+
+#food-library{margin:1.25rem 0;padding:1rem;border:1px solid #dbe3d6;border-radius:14px}
+.library-fields,#food-selection:not([hidden]){display:grid;gap:1rem;margin-top:1rem}
+#recent-foods{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:.65rem}
+#recent-foods button,#add-selection,#switch-space,#space-picker button{padding:.6rem .9rem;border-radius:10px;background:#edf2e8;color:#284e39}
+#add-selection{justify-self:start}
+#space-picker{max-width:min(26rem,90vw);padding:1.5rem;border:1px solid #dbe3d6;border-radius:16px}
+#space-picker::backdrop{background:#253b32aa}
+#space-picker[open] {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  width: min(26rem, calc(100% - 2rem));
+  box-sizing: border-box;
+  margin: auto;
+  color: #284438;
+}
+#space-picker h2, #space-picker p { grid-column: 1 / -1; margin: 0; }
+#space-picker p { line-height: 1.6; }
+#space-picker button { width: 100%; min-height: 44px; margin: 0; font: inherit; }
+#space-picker #personal-space { background: #365846; color: white; }
+#space-picker button:focus-visible { outline: 2px solid #365846; outline-offset: 3px; }
+@media (max-width: 420px) {
+  #space-picker[open] { grid-template-columns: 1fr; }
+}

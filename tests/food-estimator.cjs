@@ -5,7 +5,7 @@ function boot(store={},fail=false){
  const make=()=>({value:'',disabled:false,hidden:false,children:[],events:{},attrs:{},addEventListener(k,f){this.events[k]=f},append(...v){this.children.push(...v)},replaceChildren(){this.children=[]},focus(){},setAttribute(k,v){this.attrs[k]=v}});
  const el=id=>els[id]??=make();
  el('food-entry-meal').value='午餐';
- const ctx={el,validDay:s=>/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(s),localDay:()=> '2026-11-11',crypto:{randomUUID:()=>String(++seq)},window:{confirm:()=>true,addEventListener(){}},document:{createElement:make},localStorage:{getItem:k=>store[k],setItem(k,v){if(fail)throw Error();store[k]=v}}};
+ const ctx={el,validDay:s=>/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(s),localDay:()=> '2026-11-11',crypto:{randomUUID:()=>String(++seq)},window:{confirm:()=>true,addEventListener(){}},document:{createElement:make},fitplanStorage:{getItem:k=>store[k],setItem(k,v){if(fail)throw Error();store[k]=v}}};
  vm.runInNewContext('// FOOD ESTIMATION:'+src,ctx);
  return {el,ctx,submit:()=>el('food-natural-form').events.submit({preventDefault(){}}),store};
 }
@@ -50,3 +50,13 @@ a.equal(queryAdjustment.store['fitplan.food.records.v1'],undefined);
 queryAdjustment.el('food-query-save').events.click();a.equal(JSON.parse(queryAdjustment.store['fitplan.food.records.v1'])[0].items[0].grams,150);
 const unknownOnly=boot();unknownOnly.el('food-raw').value='红烧肉两块';unknownOnly.submit();a.match(unknownOnly.el('food-summary').textContent,/热量待估/);a.ok(!unknownOnly.el('food-summary').textContent.includes('0 千卡'));
 console.log('PASS description replacement preserves ID, cancel preserves original, future date blocked, query adjustment remains unsaved and unknown-only intake is not zero.');
+
+for(const f of vm.runInNewContext('campusFoods',x.ctx)){
+ const [item]=run('100克'+f[0]);a.equal(item.kcal,f[1]);a.equal(item.source.includes('cfs.gov.hk'),true);
+}
+a.ok(run('一份盖饭')[0].unknown);
+a.equal(run('一根油条')[0].grams,70);
+a.equal(run('一桶康师傅方便面')[0].code,'B097');
+a.equal(run('一桶康师傅红烧牛肉方便面净含量105克')[0].grams,105);
+a.equal(run('一包干方便面')[0].code,'CN-1291');
+console.log('PASS campus dishes, unknown toppings, breakfast portions and dry noodle net weight.');
