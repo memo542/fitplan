@@ -116,3 +116,28 @@
 nav button{font-family:inherit;line-height:inherit;border:0;background:transparent;text-align:start;align-items:center;cursor:pointer}
 nav :is(a,button):hover{background:#eff3eb}
 nav :is(a,button):focus-visible{outline:2px solid #497259;outline-offset:-2px}
+
+.action-cards{margin-top:1.25rem}.action-cards .action-card{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:0;padding:1.25rem}.action-cards .action-card h3{margin:0;color:#284438;font-size:1.1rem}.daily-hero{min-height:0}
+
+.brand{font-size:clamp(30px,2.7vw,38px);line-height:1.1}
+.brand .logo{width:44px;height:44px;border-radius:14px;font-size:29px}
+aside nav{margin-top:2rem}
+.action-cards .action-card{min-height:6.8rem;padding:1.35rem 1.55rem;border-top:3px solid #9caf8e}
+.action-cards .action-card:nth-child(2){border-top-color:#759487}
+.action-cards .advice-card{border-top-color:#bb9e70}
+.action-cards .action-card>span{display:grid;place-items:center;width:2rem;height:2rem;border-radius:50%;background:#edf2e8;color:#365846}
+.action-cards .advice-card>span{background:#ede5d5}
+.entry-panel .day-confirm{display:flex;align-items:center;gap:.55rem}
+.entry-panel .day-confirm input{margin:0}
+@media(max-width:700px){aside nav{margin-top:1.35rem}.action-cards .action-card{min-height:4.4rem;padding:.9rem 1.1rem}}
+
+@media (max-width:720px){
+  nav :is(a,button){font-size:14px;line-height:1.45;min-height:44px}
+  header,.pill,.hero-stat span,.optional-label,.required-label{font-size:13px}
+  .cards p,.notice p,.encouragement p,.training-preview,#ai-result{font-size:16px;line-height:1.65}
+  .cards p,.notice p{color:#506356}
+  .cards a,.entry-panel label,.journal-list,.entry-panel summary,#training-details summary,.button,.journal-actions button,.encouragement button{font-size:15px}
+  .entry-panel :is(input,textarea,select),.progress-controls :is(select,input),.food-estimate-item .gram-edit{font-size:16px}
+  .food-estimate-item details,.food-estimate-item a{font-size:14px}
+  .entry-panel :is(input,select,textarea),.progress-controls label{min-width:0;max-width:100%;box-sizing:border-box}
+}

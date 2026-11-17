@@ -22,7 +22,14 @@ const encouragements = [
   '体重只是一个数字，你的努力不止一个维度。',
   '给计划留点弹性，生活又不是一张考试卷。'
 ];
-let cheerIndex = 0;
+encouragements.push(
+ '今天的进度条，散个步也能加载。','饭要趁热吃，记录可以坐下慢慢写。','肌肉今天也在后台更新。','散步去买菜？这一趟身兼两职。','伸个懒腰，让肩膀也下个班。',
+ '今天的运动搭子：耳机里那首舍不得切的歌。','先喝口水，给自己按个刷新键。','训练有组间休息，人也有。','走到路口刚好绿灯，今天的小彩蛋。','一顿饭的快乐，也值得收进日记。',
+ '跑得慢一点，正好听完副歌。','今天的隐藏成就：终于把水杯带出门。','给认真吃饭的自己加一颗星。','下楼吹吹风，顺手收集一点步数。','举铁的时候数次数，吃饭的时候尝味道。',
+ '今天宜：把最舒服的那双鞋穿出门。','电量只剩一格？今晚就开省电模式。','绕条小路回家，给今天加个番外。'
+);
+let cheerIndex=Math.floor(Math.random()*encouragements.length);
+document.getElementById('cheer-text').textContent=encouragements[cheerIndex];
 document.getElementById('change-cheer').addEventListener('click', () => {
   cheerIndex = (cheerIndex + 1) % encouragements.length;
   document.getElementById('cheer-text').textContent = encouragements[cheerIndex];
@@ -58,7 +65,7 @@ function connectForm(config) {
    const data=JSON.parse(raw);
    if(!data || typeof data!=='object') throw Error();
    config.fields.forEach(([id,key,valid])=>{if(valid(data[key])) el(id).value=data[key]});
-   status.textContent=config.fields.every(([id,,valid])=>valid(el(id).value))?'已读取本机保存的信息。':'请补全必填项后保存。';
+   status.textContent=config.fields.every(([id,,valid])=>valid(el(id).value))?'':'请补全必填项后保存。';
   }
  } catch {status.textContent='读取失败，请重新填写。'}
  const changed=()=>{status.textContent='有未保存的修改。';if(config.after)config.after()};
@@ -98,7 +105,7 @@ try {
   if (positive(data.weight)) el('goal-weight').value = data.weight;
   const interests = Array.isArray(data.interests) ? data.interests : [];
   interestIds.forEach(id => { el('interest-' + id).checked = interests.includes(id); });
-  goalStatus.textContent = '已读取保存的目标，可以随时调整。';
+  goalStatus.textContent = '';
  }
 } catch { goalStatus.textContent = '目标读取失败，请检查后重新填写。'; }
 ['goal-kind','goal-weight',...interestIds.map(id=>'interest-'+id)].forEach(id => {
@@ -3992,7 +3999,6 @@ function connectFoodEstimator(){
     status.textContent=check.checked?'已确认全天记全。':'已取消全天确认。';
    }catch{check.checked=!check.checked;status.textContent='保存失败，请重试。'}};
   }
-  if(!rows.length)list.append(make('li','这一天还没有饮食记录。','journal-empty'));
   for(const record of rows){
    const li=make('li');li.append(make('h3',record.meal),make('p',record.raw),make('p',totalText([record])));
    showItems(li,record.items,record.id);
@@ -4028,7 +4034,6 @@ function connectFoodEstimator(){
   el('food-eaten-mode').setAttribute('aria-pressed',String(value==='eaten'));
   el('food-query-mode').setAttribute('aria-pressed',String(value==='query'));
   el('food-estimate-submit').textContent=value==='eaten'?'估算并记录':'查询热量';
-  el('food-mode-help').textContent=value==='eaten'?'点击记录即表示已经吃过，自动计入所选日期。':'只查询，不保存摄入；点击“我吃了”才记入今天。';
   date.disabled=value==='query';status.textContent='';
  }
  el('food-cancel-edit').addEventListener('click',()=>{setMode('eaten');status.textContent='已取消修改。';});
