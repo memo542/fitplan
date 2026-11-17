@@ -1,4 +1,4 @@
-const labels = { today: '今日概览', food: '饮食记录', training: '训练记录', week: '本周回顾', overview: '今日综合情况', advice: '今日建议', body: '身体数据', goals: '目标规划' };
+const labels = { today: '今日概览', food: '饮食记录', training: '训练记录', week: '成长足迹', overview: '今日综合情况', advice: '今日建议', body: '身体数据', goals: '目标规划' };
 function renderPage() {
   const requested = location.hash.slice(1);
   const page = Object.hasOwn(labels, requested) ? requested : 'today';
@@ -35,14 +35,18 @@ const positive = value => String(value).trim() !== '' && Number.isFinite(Number(
 function renderMacroGuide(){
  el('macro-guide').textContent=macroGuideText(Object.fromEntries(['age','height','weight','activity','sex'].map(k=>[k,el('profile-'+k).value])));
 }
-function macroGuideText(profile){
+function dailyEnergyEstimate(profile){
  const age=Number(profile.age),height=Number(profile.height),weight=Number(profile.weight),level=profile.activity,sex=profile.sex;
- const fallback='补全适用的基础资料后可查看每日参考范围（一般健康、非孕非哺乳成人，19岁起）。';
- if(!Number.isInteger(age)||age<19||!['0','1','2','3'].includes(level)||!['male','female'].includes(sex))return fallback;
+ if(!Number.isInteger(age)||age<19||!['0','1','2','3'].includes(level)||!['male','female'].includes(sex))return null;
  const coefficients=sex==='male'?[[753.07,6.50,14.10],[581.47,8.30,14.94],[1004.82,6.52,15.91],[-517.88,15.61,19.11]]:[[584.90,5.72,11.71],[575.77,6.60,12.14],[710.25,6.54,12.34],[511.83,9.07,12.56]];
  const [base,h,w]=coefficients[Number(level)];
  const kcal=base-age*(sex==='male'?10.83:7.01)+height*h+weight*w;
- if(!Number.isFinite(kcal)||kcal<=0||height<=0||weight<=0)return fallback;
+ if(!Number.isFinite(kcal)||kcal<=0||height<=0||weight<=0)return null;
+ return kcal;
+}
+function macroGuideText(profile){
+ const kcal=dailyEnergyEstimate(profile);
+ if(kcal===null)return "补全适用的基础资料后可查看每日参考范围（一般健康、非孕非哺乳成人，19岁起）。";
  const range=(low,high,unit)=>Math.round(kcal*low/unit)+'–'+Math.round(kcal*high/unit)+' 克';
  return '维持体重参考约 '+Math.round(kcal)+' 千卡/天。蛋白质 '+range(.10,.35,4)+'，碳水 '+range(.45,.65,4)+'，脂肪 '+range(.20,.35,9)+'。适用于一般健康、非孕非哺乳成人。';
 }
@@ -64,10 +68,17 @@ function connectForm(config) {
   if(!config.fields.every(([id,,valid])=>valid(el(id).value))) {status.textContent='请完整填写必填项，数值必须大于零。';return}
   const data={version:1,updatedAt:new Date().toISOString()};
   config.fields.forEach(([id,key])=>{data[key]=el(id).value});
-  try {fitplanStorage.setItem(config.key,JSON.stringify(data));status.textContent='已保存，刷新后仍保留。'}catch{status.textContent='保存失败，浏览器存储不可用。'}
+  try {
+   const day=el('measure-day').value;
+   if(!validDay(day)||day>localDay()){status.textContent='请选择今天或更早的测量日期。';return}
+   const old=JSON.parse(fitplanStorage.getItem(config.key));
+   data.weights={...weightHistory(old),[day]:Number(data.weight)};
+   const latest=Object.keys(data.weights).sort().at(-1);
+   data.weight=String(data.weights[latest]);
+   fitplanStorage.setItem(config.key,JSON.stringify(data));status.textContent='已保存，刷新后仍保留。'}catch{status.textContent='保存失败，浏览器存储不可用。'}
  });
  el(config.clear).addEventListener('click',()=>{
-  if(!window.confirm('确定清除已保存的信息？'))return;
+  if(!window.confirm('确定清除基础信息和所有历史体重吗？'))return;
   try{fitplanStorage.removeItem(config.key);config.fields.forEach(([id])=>el(id).value='');status.textContent='已清除。';if(config.after)config.after()}catch{status.textContent='清除失败，请重试。'}
  });
  if(config.after)config.after();
@@ -1503,7 +1514,7 @@ for(const f of ['name','minutes','sets','reps','weight'])el('training-'+f).addEv
  render();
 }
 
-connectJournal('training');
+
 
 
 
@@ -1531,6 +1542,10 @@ function renderDayDetails(){
  }
  el('daily-macros').textContent=(known?['蛋白质','碳水','脂肪'].map((label,i)=>label+' '+Number(sums[i].toFixed(1))+' 克').join(' · '):'等待可估算的食物记录')+(unknown?'（另有 '+unknown+' 项待估）':'');
  el('daily-reference').textContent=macroGuideText(profile);
+ const energy=energyDay(day,profile,foods,training);
+ el('overview-burn').textContent=el('today-burn').textContent=energy.total==null?'待估算':'约 '+energy.total+' 千卡';
+ el('overview-split').textContent=energy.detail;
+ el('overview-balance').textContent=energy.balance;
  const done=training.filter(r=>r.state==='done'),plans=training.filter(r=>r.state==='planned');
  const timed=done.filter(r=>positive(r.minutes)),estimated=done.filter(r=>Number.isFinite(r.activity?.kcal));
  const minutes=timed.reduce((sum,r)=>sum+Number(r.minutes),0),kcal=estimated.reduce((sum,r)=>sum+r.activity.kcal,0);
@@ -3955,6 +3970,18 @@ function connectFoodEstimator(){
  function renderRecords(){
   const rows=records.filter(d=>d.date===filter.value),list=el('food-list');list.replaceChildren();
   el('food-summary').textContent=rows.length?totalText(rows):'暂无记录';
+  if(document.getElementById){
+   const check=el('day-complete'),day=filter.value;
+   const marker='fitplan.food.complete.'+day;
+   const signature=JSON.stringify(rows);
+   check.disabled=!rows.length;
+   check.checked=!!rows.length&&fitplanStorage.getItem(marker)===signature;
+   check.onchange=()=>{try{
+    if(check.checked)fitplanStorage.setItem(marker,signature);
+    else fitplanStorage.removeItem(marker);
+    status.textContent=check.checked?'已确认全天记全。':'已取消全天确认。';
+   }catch{check.checked=!check.checked;status.textContent='保存失败，请重试。'}};
+  }
   if(!rows.length)list.append(make('li','这一天还没有饮食记录。','journal-empty'));
   for(const record of rows){
    const li=make('li');li.append(make('h3',record.meal),make('p',record.raw),make('p',totalText([record])));
@@ -4010,7 +4037,32 @@ el('food-eaten-mode').addEventListener('click',()=>setMode('eaten'));
  window.addEventListener('storage',event=>{if(event.key===key&&refresh()){result=null;lastSaved=null;renderResult();renderRecords()}});
  if(refresh())renderRecords();
 }
+if(typeof demoMonth!=='undefined'&&demoMonth){seedOctoberDemo();upgradeOctoberStatistics();const demoProfile=journalRecords("profile",{});if(!demoProfile.age&&demoProfile.weights?.["2026-10-01"]===61){Object.assign(demoProfile,{age:"25",height:"165",sex:"female",activity:"0"});fitplanStorage.setItem("fitplan.profile.v1",JSON.stringify(demoProfile))}}
+if(document.getElementById)connectJournal('training');
 connectFoodEstimator();
+function seedOctoberDemo(){
+ const key='fitplan.demo-seeded.v1';
+ if(fitplanStorage.getItem(key))return;
+ const menus=[
+ ['100克燕麦粥，250克牛奶，100克香蕉','200克米饭，150克烤鸡胸肉，120克煮西兰花','220克烤土豆，160克原味豆腐，100克黄瓜'],
+ ['80克全麦面包，100克水煮鸡蛋，150克苹果','200克米饭，120克烤瘦牛排，150克煮胡萝卜','200克熟鸡蛋面，120克原味豆腐，100克生菜'],
+ ['200克酸奶，80克全麦面包，100克橙子','250克烤红薯，150克烤鸡胸肉，120克黄瓜','180克米饭，100克水煮鸡蛋，150克煮西兰花']
+ ];
+ const activities=[['快走',30],['弹力带训练',20],['舒缓拉伸',15],['慢跑',25],['徒手力量训练',25],['骑行',40],['散步',20]];
+ const food=[],moves=[];
+ for(let day=1;day<=31;day++){
+  const date='2026-10-'+String(day).padStart(2,'0');
+  const menu=menus[(day-1)%menus.length];
+  menu.forEach((raw,i)=>food.push({id:date+'-meal-'+i,date,meal:['早餐','午餐','晚餐'][i],raw,items:estimateFood(raw)}));
+  const [name,minutes]=activities[(day-1)%7];
+  moves.push({id:date+'-move',date,name,raw:name+minutes+'分钟',minutes:String(minutes),state:day%10===0?'planned':'done',sets:'',reps:'',weight:'',note:'演示记录'});
+ }
+ fitplanStorage.setItem('fitplan.food.records.v1',JSON.stringify(food));
+ fitplanStorage.setItem('fitplan.training.records.v1',JSON.stringify(moves));
+ const weights={'2026-10-01':61,'2026-10-08':60.8,'2026-10-15':60.9,'2026-10-22':60.6,'2026-10-31':60.5};
+ fitplanStorage.setItem('fitplan.profile.v1',JSON.stringify({weight:'60.5',weights}));
+ fitplanStorage.setItem(key,'1');
+}
 
 
 if(document.getElementById){
@@ -4069,4 +4121,152 @@ if(document.getElementById){
  window.addEventListener('food-records-changed',show);
  window.addEventListener('storage',e=>{if(e.storageArea===fitplanStorage&&e.key==='fitplan.food.records.v1')show()});
  show();
+}
+function journalRecords(key, fallback){
+ return JSON.parse(fitplanStorage.getItem('fitplan.'+key+'.v1'))??fallback;
+}
+function renderWeek(){
+ const panel=el('week-review');
+ panel.replaceChildren();
+ try{
+  const food=journalRecords('food.records',[]),training=journalRecords('training.records',[]);
+  const first=new Date((el("progress-day").value||localDay())+"T12:00:00");first.setHours(12,0,0,0);first.setDate(first.getDate()-(first.getDay()+6)%7);
+  for(let i=0;i<7;i++){
+   const date=new Date(first);date.setDate(first.getDate()+i);
+   const day=[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
+   const meals=food.filter(r=>r.date===day),moves=training.filter(r=>r.date===day);
+   const items=meals.flatMap(r=>r.items||[]),energy=items.filter(x=>Number.isFinite(x.kcal));
+   const known=items.filter(x=>macrosPer100[x.code]&&positive(x.grams));
+   const heading=document.createElement('h3');heading.textContent='周'+'一二三四五六日'[i]+' · '+day;
+   const line=document.createElement('p');
+   const parts=[];
+   if(meals.length){
+    parts.push('饮食 '+meals.length+' 条',energy.length?'已估约 '+Math.round(energy.reduce((n,x)=>n+x.kcal,0))+' 千卡':'热量待估');
+    if(known.length)parts.push(...['蛋白质','碳水','脂肪'].map((label,k)=>label+' '+Number(known.reduce((n,x)=>n+macrosPer100[x.code][k]*x.grams/100,0).toFixed(1))+' 克'));
+    if(known.length<items.length||energy.length<items.length)parts.push('部分数据待估');
+   }else parts.push(day>localDay()?'尚未到来':'饮食未记录');
+   if(moves.length)parts.push('已完成 '+moves.filter(x=>x.state==='done').length+' 项训练','计划 '+moves.filter(x=>x.state==='planned').length+' 项');
+   else if(day<=localDay())parts.push('训练未记录');
+   line.textContent=parts.join(' · ');panel.append(heading,line);
+  }
+ }catch{panel.textContent='本周记录读取失败，请重新打开页面。'}
+}
+if(document.getElementById){
+ setupProgress();renderDayDetails();
+ for(const event of ['hashchange','storage','focus','food-records-changed'])window.addEventListener(event,()=>{if(location.hash==='#week')renderProgress()});
+}
+function dateKey(date){
+ return [date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
+}
+function weightHistory(profile){
+ if(profile?.weights)return profile.weights;
+ const saved=new Date(profile?.updatedAt);
+ return positive(profile?.weight)&&Number.isFinite(saved.getTime())?{[dateKey(saved)]:Number(profile.weight)}:{};
+}
+function setupProgress(){
+ el('measure-day').max=localDay();
+ el('measure-day').value=localDay();
+ el('progress-day').value=localDay();
+ el('progress-month').value=demoMonth||localDay().slice(0,7);
+ if(demoMonth){el('progress-day').value=demoMonth+'-15';for(const id of ['food-filter','training-filter']){el(id).value=demoMonth+'-15';el(id).dispatchEvent(new Event('change'))}}
+ for(const id of ['progress-day','progress-month','progress-range'])el(id).addEventListener('change',renderProgress);
+ renderProgress();
+}
+function renderProgress(){
+ const monthly=el('progress-range').value==='month';
+ el('month-control').hidden=el('month-review').hidden=!monthly;
+ el('week-control').hidden=el('week-review').hidden=monthly;
+ if(!monthly){renderWeek();return}
+ const panel=el('month-review'),month=el('progress-month').value;
+ panel.replaceChildren();
+ if(!month){panel.textContent='请选择月份。';return}
+ function line(tag,text){const node=document.createElement(tag);node.textContent=text;panel.append(node)}
+ try{
+  const inMonth=r=>r.date?.slice(0,7)===month;
+  const meals=journalRecords('food.records',[]).filter(inMonth);
+  const training=journalRecords('training.records',[]).filter(inMonth);
+  const done=training.filter(r=>r.state==='done'),timed=done.filter(r=>positive(r.minutes));
+  line('h2',month.replace('-',' 年 ')+' 月');
+  line('p',meals.length?'饮食记录覆盖 '+new Set(meals.map(r=>r.date)).size+' 天，共 '+meals.length+' 条。':'本月暂无饮食记录。');
+  line('p',training.length?'已完成 '+done.length+' 项训练'+(timed.length?'，已记时合计 '+Number(timed.reduce((n,r)=>n+Number(r.minutes),0).toFixed(1))+' 分钟':'')+'。另有 '+training.filter(r=>r.state==='planned').length+' 项计划。':'本月暂无训练记录。');
+  const profile=journalRecords('profile',{}),samples=[];
+  for(const day of new Set(meals.map(row=>row.date))){
+   const sample=energyDay(day,profile,meals.filter(row=>row.date===day),training.filter(row=>row.date===day));
+   if(Number.isFinite(sample.intake))samples.push(sample);
+  }
+  line('h3','日均热量收支');
+  if(samples.length){
+   const mean=key=>Math.round(samples.reduce((sum,row)=>sum+row[key],0)/samples.length);
+   const intake=mean('intake'),burn=mean('total'),gap=intake-burn;
+   const cards=document.createElement('div');cards.className='energy-averages';
+   for(const [label,value] of [['日均摄入',intake],['日均总消耗',burn],[gap<0?'日均缺口':gap>0?'日均盈余':'收支持平',Math.abs(gap)]]){
+    const cell=document.createElement('div'),title=document.createElement('span'),number=document.createElement('strong');
+    title.textContent=label;number.textContent=value.toLocaleString('zh-CN');cell.append(title,number);cards.append(cell);
+   }
+   panel.append(cards);
+   line('p','单位：千卡 / 天 · 共 '+samples.length+' 个饮食记全、可估算收支的日期');
+   line('p','日均消耗中，非训练时段约 '+mean('daily')+' 千卡，已记录训练约 '+mean('exercise')+' 千卡。非训练时段按久坐日估算。');
+  }else line('p','暂无可计算的完整日期。请确认全天饮食已记全，并补全估算消耗所需的身体数据和训练记录。');
+  line('h3','体重变化');
+  const points=Object.entries(weightHistory(journalRecords('profile',{}))).filter(([day,w])=>day.startsWith(month+'-')&&positive(w)).sort(([a],[b])=>a.localeCompare(b));
+  if(!points.length){line('p','本月还没有体重测量。可在「身体数据」选择测量日期后保存。');return}
+  const first=points[0][1],last=points.at(-1)[1],delta=Number((last-first).toFixed(1));
+  line('p',points.length===1?'本月首次测量：'+first+' kg。':first+' → '+last+' kg，首末两次相差 '+(delta>0?'+':'')+delta+' kg。');
+  const weights=points.map(p=>Number(p[1])),lo=Math.min(...weights)-0.5,hi=Math.max(...weights)+0.5;
+  const days=new Date(Number(month.slice(0,4)),Number(month.slice(5)),0).getDate();
+  const x=d=>48+(Number(d.slice(-2))-1)*400/(days-1),y=w=>128-(w-lo)*104/(hi-lo);
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  function draw(tag,attrs,text){const n=document.createElementNS(svg.namespaceURI,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,v);if(text)n.textContent=text;svg.append(n);return n}
+  svg.setAttribute('viewBox','0 0 480 164');svg.setAttribute('role','img');svg.setAttribute('aria-label',month+' 体重曲线，单位千克。逐日数值见下方测量明细。');
+  for(const w of [lo,hi]){draw('line',{x1:48,x2:448,y1:y(w),y2:y(w),stroke:'#dbe3d6'});draw('text',{x:2,y:y(w)+4},w.toFixed(1))}
+  draw('text',{x:48,y:156},'1 日');draw('text',{x:422,y:156},days+' 日');
+  draw('polyline',{points:points.map(([d,w])=>x(d)+','+y(w)).join(' '),fill:'none',stroke:'#426853','stroke-width':3});
+  for(const [d,w] of points)draw('circle',{cx:x(d),cy:y(w),r:4,fill:'#365846'});
+  panel.append(svg);
+  const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='测量明细（'+points.length+' 天）';details.append(summary);
+  for(const [d,w] of points){const p=document.createElement('p');p.textContent=d+' · '+w+' kg';details.append(p)}panel.append(details);
+ }catch{panel.textContent='月度记录暂时无法读取。'}
+}
+
+function upgradeOctoberStatistics(){
+ const marker='fitplan.demo.statistics.v1';
+ if(fitplanStorage.getItem(marker))return;
+ const meals=journalRecords('food.records',[]);
+ for(let day=1;day<=31;day++){
+  const date='2026-10-'+String(day).padStart(2,'0');
+  const rows=meals.filter(r=>r.date===date);
+  if(day%5&&rows.length===3&&rows.every((r,i)=>r.id===date+'-meal-'+i))
+   fitplanStorage.setItem('fitplan.food.complete.'+date,JSON.stringify(rows));
+ }
+ const codes={'快走':'17200','慢跑':'12020','徒手力量训练':'02056','骑行':'01015'};
+ const weights=weightHistory(journalRecords('profile',{}));
+ const moves=journalRecords('training.records',[]);
+ for(const move of moves){
+  if(move.activity||move.id!==move.date+'-move')continue;
+  const row=activityCatalog.find(r=>r[0]===codes[move.name]);
+  const date=Object.keys(weights).filter(d=>d<=move.date).sort().at(-1);
+  if(row&&date)move.activity={code:row[0],met:row[1],description:row[2],kcal:Math.round(row[1]*weights[date]*Number(move.minutes)/60)};
+ }
+ fitplanStorage.setItem('fitplan.training.records.v1',JSON.stringify(moves));
+ fitplanStorage.setItem(marker,'1');
+}
+
+function energyDay(day,profile,meals,moves){
+ const history=weightHistory(profile);
+ const measured=Object.keys(history).filter(d=>d<=day).sort().at(-1);
+ const weight=measured?history[measured]:Object.keys(history).length?null:profile.weight;
+ const baseline=dailyEnergyEstimate({...profile,weight,activity:'0'});
+ const unavailable={total:null,balance:'热量收支待估算'};
+ if(!baseline)return {...unavailable,detail:'需要适用的成人资料和当日或更早的体重记录'};
+ const done=moves.filter(r=>r.state==='done');
+ const minutes=done.reduce((n,r)=>n+Number(r.minutes),0);
+ if(minutes>1440||done.some(r=>!positive(r.minutes)||!Number.isFinite(r.activity?.kcal))){
+  return {...unavailable,detail:'久坐日基线约 '+Math.round(baseline)+' 千卡；已完成训练的时长或热量待核实'};
+ }
+ const daily=Math.round(baseline*(1-minutes/1440)),exercise=Math.round(done.reduce((n,r)=>n+r.activity.kcal,0)),total=daily+exercise;
+ const detail='非训练时段约 '+daily+' + 已记录训练 '+exercise+' = 预计全天 '+total+' 千卡（久坐日参照）';
+ const complete=meals.length&&fitplanStorage.getItem('fitplan.food.complete.'+day)===JSON.stringify(meals)&&meals.every(r=>r.items?.length&&r.items.every(i=>!i.unknown&&Number.isFinite(i.kcal)));
+ if(!complete)return {total,detail,balance:'摄入尚未确认记全或有热量待估，暂不计算盈亏'};
+ const intake=Math.round(meals.flatMap(r=>r.items).reduce((n,i)=>n+i.kcal,0)),difference=intake-total;
+ return {total,daily,exercise,intake,detail,balance:'摄入 '+intake+' 千卡，'+(difference===0?'估算收支持平':'预计'+(difference>0?'盈余':'缺口')+'约 '+Math.abs(difference)+' 千卡')};
 }
