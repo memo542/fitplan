@@ -4339,3 +4339,80 @@ function energyDay(day,profile,meals,moves){
  const intake=Math.round(meals.flatMap(r=>r.items).reduce((n,i)=>n+i.kcal,0)),difference=intake-total;
  return {total,daily,exercise,intake,detail,balance:'摄入 '+intake+' 千卡，'+(difference===0?'估算收支持平':'预计'+(difference>0?'盈余':'缺口')+'约 '+Math.abs(difference)+' 千卡')};
 }
+function setupBackup(){
+ const panel=el('backup-panel'),file=el('backup-file'),status=el('backup-status'),apply=el('backup-apply');
+ const space=demoMonth?'演示空间':fitplanStorage===sessionStorage?'访客空间':'个人空间';
+ const fixed=['profile','goals','body.custom','goal.custom','food.records','training.records'].map(name=>'fitplan.'+name+'.v1');
+ const allowed=key=>fixed.includes(key)||['fitplan.advice.','fitplan.food.complete.'].some(prefix=>key.startsWith(prefix)&&validDay(key.slice(prefix.length)));
+ function snapshot(){
+  const storage=demoMonth?localStorage:fitplanStorage,prefix=demoMonth?'fitplan.demo.october.':'';
+  const data={};
+  for(let i=0;i<storage.length;i++){
+   const full=storage.key(i);
+   if(!full?.startsWith(prefix))continue;
+   const key=full.slice(prefix.length);
+   if(allowed(key))data[key]=storage.getItem(full);
+  }
+  return data;
+ }
+ function validValue(key,raw){
+  if(typeof raw!=='string')return false;
+  if(key.startsWith('fitplan.advice.'))return true;
+  const value=JSON.parse(raw);
+  if(key.startsWith('fitplan.food.complete.'))return Array.isArray(value);
+  if(key===fixed[0]||key===fixed[1])return value&&typeof value==='object'&&!Array.isArray(value)&&(!value.weights||Object.entries(value.weights).every(([d,w])=>validDay(d)&&positive(w)));
+  if(!Array.isArray(value)||!value.every(r=>r&&typeof r.id==='string')||new Set(value.map(r=>r.id)).size!==value.length)return false;
+  if(key===fixed[5])return value.every(r=>!journalError('training',r));
+  if(key===fixed[4])return value.every(r=>validDay(r.date)&&['早餐','午餐','晚餐','加餐'].includes(r.meal)&&(r.items?
+   typeof r.raw==='string'&&Array.isArray(r.items)&&r.items.length&&r.items.every(i=>i&&typeof i.name==='string'&&typeof i.unknown==='boolean'&&(i.unknown||(positive(i.grams)&&Number.isFinite(i.kcalPer100)&&i.kcalPer100>=0))):
+   typeof r.name==='string'));
+  return value.every(r=>['name','value','unit'].every(k=>typeof r[k]==='string'));
+ }
+ let pending=null;
+ el('open-backup').onclick=()=>{
+  pending=null;file.value='';apply.hidden=true;status.textContent='';
+  el('backup-space').textContent='当前：'+space+'。备份含个人健康记录，请妥善保存。';
+  panel.showModal();
+ };
+ el('backup-close').onclick=()=>panel.close();
+ el('backup-export').onclick=()=>{
+  try{
+   const payload={format:'fitplan-backup',version:1,space,createdAt:new Date().toISOString(),data:snapshot()};
+   const url=URL.createObjectURL(new Blob([JSON.stringify(payload)],{type:'application/json'}));
+   const a=document.createElement('a');a.href=url;a.download='Fitplan-'+space+'-'+localDay()+'.json';a.click();
+   setTimeout(()=>URL.revokeObjectURL(url),30000);status.textContent='已请求下载，请在浏览器下载列表中查看。';
+  }catch{status.textContent='导出失败，请检查浏览器存储。'}
+ };
+ file.onchange=async()=>{
+  const chosen=file.files[0];pending=null;apply.hidden=true;status.textContent='';
+  if(!chosen)return;
+  try{
+   if(chosen.size>40*1024*1024)throw Error();
+   const p=JSON.parse(await chosen.text());
+   if(p.format!=='fitplan-backup'||p.version!==1||!['个人空间','演示空间','访客空间'].includes(p.space)||!p.data||typeof p.data!=='object'||Array.isArray(p.data)||!Object.entries(p.data).every(([k,v])=>allowed(k)&&validValue(k,v)))throw Error();
+   if(file.files[0]!==chosen)return;
+   const count=k=>JSON.parse(p.data[k]||'[]').length;
+   status.textContent=p.space+'备份：饮食 '+count(fixed[4])+' 条，训练 '+count(fixed[5])+' 条。确认后将替换'+space+'内的资料、目标和记录。';
+   pending=p.data;apply.hidden=false;
+  }catch{if(file.files[0]===chosen)status.textContent='文件无效、过大或版本不支持。当前记录已保留。'}
+ };
+ apply.onclick=()=>{
+  if(!pending)return;
+  let old;const changed=[];
+  try{
+   old=snapshot();
+   const keys=new Set([...Object.keys(old),...Object.keys(pending)]);
+   // Remove shrinking entries first to leave space for restored records.
+   for(const key of [...keys].sort((a,b)=>((pending[a]?.length||0)-(old[a]?.length||0))-((pending[b]?.length||0)-(old[b]?.length||0)))){
+    if(pending[key]===old[key])continue;
+    if(key in pending)fitplanStorage.setItem(key,pending[key]);else fitplanStorage.removeItem(key);
+    changed.push(key);
+   }
+  }catch{
+   for(const key of changed.reverse()){if(key in old)fitplanStorage.setItem(key,old[key]);else fitplanStorage.removeItem(key)}
+   status.textContent='恢复失败，原记录已保留。请检查浏览器空间。';return;
+  }
+  location.reload();
+ };
+}
+if(document.getElementById)setupBackup();
